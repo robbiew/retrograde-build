@@ -10,7 +10,16 @@ echo "Using official installation script from huskyproject/huskybse"
 
 # Determine architecture for output naming
 ARCH=$(uname -m)
-if [ "$ARCH" = "aarch64" ]; then
+if [ -n "$FORCE_ARCH" ]; then
+    # Use forced architecture from environment
+    if [ "$FORCE_ARCH" = "arm64" ]; then
+        ARCH_NAME="arm64"
+    elif [ "$FORCE_ARCH" = "x86_64" ]; then
+        ARCH_NAME="x86_64"
+    else
+        ARCH_NAME="$FORCE_ARCH"
+    fi
+elif [ "$ARCH" = "aarch64" ]; then
     ARCH_NAME="arm64"
 elif [ "$ARCH" = "x86_64" ]; then
     ARCH_NAME="x86_64"
@@ -94,32 +103,34 @@ mkdir -p /output/husky/$ARCH_NAME
 # Copy the built binaries to output directory
 echo "Copying binaries to output directory..."
 
-# Find and copy the main binaries
-for binary in hpt htick; do
-    binary_path=$(find . -name "$binary" -type f -executable | head -1)
-    if [ -n "$binary_path" ]; then
-        echo "Found $binary at: $binary_path"
-        cp "$binary_path" "/output/husky/$ARCH_NAME/"
-        echo "Copied $binary to /output/husky/$ARCH_NAME/"
-    else
-        echo "Warning: $binary not found"
+# Find all executable binaries in the Husky build
+echo "Searching for all Husky binaries..."
+find . -type f -executable -name "*" | grep -E "(Build/|/bin/)" | while read binary_path; do
+    if [ -n "$binary_path" ] && [ -f "$binary_path" ]; then
+        binary_name=$(basename "$binary_path")
+        # Skip libraries, object files, and format converters we don't need
+        if [[ ! "$binary_name" == lib* ]] && [[ ! "$binary_name" == *.a ]] && [[ ! "$binary_name" == *.o ]] && [[ ! "$binary_name" == *.so* ]] && \
+           [[ ! "$binary_name" == fconf2* ]] && [[ ! "$binary_name" == fecfg2* ]]; then
+            echo "Found binary: $binary_name at $binary_path"
+            cp "$binary_path" "/output/husky/$ARCH_NAME/"
+            echo "Copied $binary_name to /output/husky/$ARCH_NAME/"
+        fi
     fi
 done
 
-# Copy fidoconf if it exists (it might be part of the library)
-fidoconf_path=$(find . -name "fidoconf*" -type f -executable | head -1)
-if [ -n "$fidoconf_path" ]; then
-    echo "Found fidoconf at: $fidoconf_path"
-    cp "$fidoconf_path" "/output/husky/$ARCH_NAME/"
-fi
-
-# Also look for other useful Husky binaries
-echo "Looking for additional Husky utilities..."
-for util in areafix hpucode hptlink; do
-    util_path=$(find . -name "$util" -type f -executable | head -1)
-    if [ -n "$util_path" ]; then
-        echo "Found $util at: $util_path"
-        cp "$util_path" "/output/husky/$ARCH_NAME/"
+# Also specifically look for main programs by name
+echo "Looking for specific Husky programs..."
+for program in hpt htick hptlink hpttree pktinfo txt2pkt tpkt gnmsgid tparser linked; do
+    program_path=$(find . -name "$program" -type f -executable | head -1)
+    if [ -n "$program_path" ] && [ -f "$program_path" ]; then
+        echo "Found $program at: $program_path"
+        # Only copy if not already copied
+        if [ ! -f "/output/husky/$ARCH_NAME/$program" ]; then
+            cp "$program_path" "/output/husky/$ARCH_NAME/"
+            echo "Copied $program to /output/husky/$ARCH_NAME/"
+        else
+            echo "$program already copied"
+        fi
     fi
 done
 
