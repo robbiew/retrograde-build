@@ -1,4 +1,4 @@
-# DockerBuilds - External Binary Builder for Retrograde BBS
+# External Binary Builder for Retrograde BBS
 
 This repository builds static external binaries used by [Retrograde BBS](https://github.com/robbiew/retrograde).
 
