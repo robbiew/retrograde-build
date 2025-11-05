@@ -1,0 +1,29 @@
+Retrograde BBS Static Binary Build Summary
+==========================================
+
+Architecture: x86_64
+Build Date: Wed Nov  5 18:17:35 UTC 2025
+Build Host: 3a77ee8c1ff0
+
+Components Built:
+
+husky:
+total 1376
+drwxr-xr-x 2 root root   4096 Nov  5 18:17 .
+drwxr-xr-x 3 root root   4096 Nov  5 18:17 ..
+-rwxr-xr-x 1 root root 589656 Nov  5 18:17 hpt
+-rwxr-xr-x 1 root root 265752 Nov  5 18:17 hptlink
+-rwxr-xr-x 1 root root 544344 Nov  5 18:17 htick
+
+binkd:
+total 1412
+drwxr-xr-x 2 root root    4096 Nov  5 18:17 .
+drwxr-xr-x 3 root root    4096 Nov  5 18:17 ..
+-rwxr-xr-x 1 root root 1436520 Nov  5 18:17 binkd
+
+stormedit:
+total 1944
+drwxr-xr-x 2 root root    4096 Nov  5 18:17 .
+drwxr-xr-x 3 root root    4096 Nov  5 18:17 ..
+-rw-r--r-- 1 root root     653 Nov  5 18:17 editorbd.ans
+-rwxr-xr-x 1 root root 1977040 Nov  5 18:17 stormedit
