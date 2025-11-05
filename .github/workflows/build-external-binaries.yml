@@ -1,0 +1,271 @@
+name: Build External Binaries for Retrograde
+
+on:
+  # Weekly builds every Monday at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * 1'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Target release tag for retrograde repo (e.g., v1.0.1)'
+        required: true
+        default: 'v1.0.0'
+        type: string
+      
+      components:
+        description: 'Components to build'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - husky
+          - binkd
+          - stormedit
+
+  # Trigger on push to main branch (for testing)
+  push:
+    branches: [ main ]
+    paths:
+      - 'retrograde-builders/**'
+      - 'build.sh'
+      - '.github/workflows/build-external-binaries.yml'
+
+env:
+  RETROGRADE_REPO: 'robbiew/retrograde'
+  DEFAULT_RELEASE_TAG: 'v1.0.0'
+
+jobs:
+  build-external-binaries:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        architecture: [x86_64, arm64]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout DockerBuilds repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Set release variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release_tag=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
+            echo "components=${{ github.event.inputs.components }}" >> $GITHUB_OUTPUT
+          else
+            echo "release_tag=${{ env.DEFAULT_RELEASE_TAG }}" >> $GITHUB_OUTPUT
+            echo "components=all" >> $GITHUB_OUTPUT
+          fi
+          echo "timestamp=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+      
+      - name: Build Docker container for ${{ matrix.architecture }}
+        run: |
+          echo "🏗️ Building Docker container for ${{ matrix.architecture }}..."
+          docker build -t "retrograde-builder:${{ matrix.architecture }}" "retrograde-builders/${{ matrix.architecture }}/"
+      
+      - name: Build external binaries
+        run: |
+          echo "🔨 Building ${{ steps.vars.outputs.components }} for ${{ matrix.architecture }}..."
+          ./build.sh --${{ steps.vars.outputs.components }} ${{ matrix.architecture }}
+      
+      - name: Create release archives (alternative method)
+        run: |
+          echo "🏗️ Creating release archives using create-release-archives.sh..."
+          if [ -f "./scripts/create-release-archives.sh" ]; then
+            VERSION="${{ steps.vars.outputs.release_tag }}" ./scripts/create-release-archives.sh
+            echo "📦 Archives created in archives/ directory"
+            ls -la archives/ || echo "No archives directory found"
+          else
+            echo "⚠️ create-release-archives.sh not found, using manual method"
+          fi
+      
+      - name: List build outputs
+        run: |
+          echo "📦 Build outputs for ${{ matrix.architecture }}:"
+          find output/ -type f -executable -ls || echo "No executables found"
+          find output/ -name "*${{ matrix.architecture }}*" -ls || echo "No architecture-specific files found"
+      
+      - name: Create architecture-specific archive
+        run: |
+          echo "📦 Creating archive for ${{ matrix.architecture }}..."
+          
+          # Create a staging directory
+          mkdir -p staging/${{ matrix.architecture }}
+          
+          # Copy binaries to staging with consistent naming
+          if [ -d "output/${{ matrix.architecture }}" ]; then
+            # Look for binaries in architecture-specific output
+            for component_dir in output/${{ matrix.architecture }}/*; do
+              if [ -d "$component_dir" ]; then
+                component=$(basename "$component_dir")
+                echo "Processing $component..."
+                
+                # Copy binaries with standardized names
+                case "$component" in
+                  "husky"|"hpt")
+                    if [ -f "$component_dir/hpt" ]; then
+                      cp "$component_dir/hpt" "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
+                      chmod +x "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
+                    fi
+                    ;;
+                  "binkd")
+                    if [ -f "$component_dir/binkd" ]; then
+                      cp "$component_dir/binkd" "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
+                      chmod +x "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
+                    fi
+                    ;;
+                  "stormedit")
+                    if [ -f "$component_dir/stormedit" ]; then
+                      cp "$component_dir/stormedit" "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
+                      chmod +x "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
+                    fi
+                    ;;
+                esac
+              fi
+            done
+          fi
+          
+          # List what we're archiving
+          echo "📋 Files to archive:"
+          ls -la staging/${{ matrix.architecture }}/ || echo "No files found for ${{ matrix.architecture }}"
+          
+          # Create the archive if we have files
+          if [ "$(ls -A staging/${{ matrix.architecture }}/)" ]; then
+            tar -czf "retrograde-external-binaries-${{ steps.vars.outputs.release_tag }}-linux-${{ matrix.architecture }}.tar.gz" \
+              -C staging/${{ matrix.architecture }} .
+            
+            echo "✅ Created archive: retrograde-external-binaries-${{ steps.vars.outputs.release_tag }}-linux-${{ matrix.architecture }}.tar.gz"
+            ls -lh "retrograde-external-binaries-${{ steps.vars.outputs.release_tag }}-linux-${{ matrix.architecture }}.tar.gz"
+          else
+            echo "⚠️ No binaries found for ${{ matrix.architecture }}, skipping archive creation"
+          fi
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: external-binaries-${{ matrix.architecture }}
+          path: |
+            *.tar.gz
+            staging/${{ matrix.architecture }}/*
+          retention-days: 30
+
+  upload-to-retrograde:
+    needs: build-external-binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Set release variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release_tag=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "release_tag=${{ env.DEFAULT_RELEASE_TAG }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: List downloaded artifacts
+        run: |
+          echo "📦 Downloaded artifacts:"
+          find artifacts/ -type f -name "*.tar.gz" -exec ls -lh {} \;
+      
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+      
+      - name: Check if Retrograde release exists
+        id: check_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RETROGRADE_RELEASE_TOKEN }}
+        run: |
+          if gh release view "${{ steps.vars.outputs.release_tag }}" --repo "${{ env.RETROGRADE_REPO }}" >/dev/null 2>&1; then
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Release ${{ steps.vars.outputs.release_tag }} exists"
+          else
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Release ${{ steps.vars.outputs.release_tag }} does not exist"
+          fi
+      
+      - name: Upload external binaries to Retrograde release
+        if: steps.check_release.outputs.release_exists == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.RETROGRADE_RELEASE_TOKEN }}
+        run: |
+          echo "🚀 Uploading external binaries to Retrograde release ${{ steps.vars.outputs.release_tag }}..."
+          
+          # Find and upload all .tar.gz files
+          find artifacts/ -name "*.tar.gz" -type f | while read -r archive; do
+            echo "📤 Uploading $(basename "$archive")..."
+            
+            # Check if asset already exists and delete it
+            asset_name=$(basename "$archive")
+            if gh release view "${{ steps.vars.outputs.release_tag }}" --repo "${{ env.RETROGRADE_REPO }}" --json assets --jq ".assets[].name" | grep -q "^${asset_name}$"; then
+              echo "🗑️ Deleting existing asset: $asset_name"
+              gh release delete-asset "${{ steps.vars.outputs.release_tag }}" "$asset_name" --repo "${{ env.RETROGRADE_REPO }}" --yes
+            fi
+            
+            # Upload the new asset
+            gh release upload "${{ steps.vars.outputs.release_tag }}" "$archive" --repo "${{ env.RETROGRADE_REPO }}"
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Successfully uploaded: $asset_name"
+            else
+              echo "❌ Failed to upload: $asset_name"
+              exit 1
+            fi
+          done
+          
+          echo "🎉 All external binaries uploaded successfully!"
+      
+      - name: Create release note comment
+        if: steps.check_release.outputs.release_exists == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.RETROGRADE_RELEASE_TOKEN }}
+        run: |
+          # Create a temporary release note
+          cat > release_note.md << EOF
+          ## External Dependencies Updated
+          
+          **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          **Source:** DockerBuilds Repository - GitHub Actions
+          **Components:** ${{ steps.vars.outputs.components }}
+          
+          ### Updated External Binaries:
+          $(find artifacts/ -name "*.tar.gz" -type f -exec basename {} \; | sed 's/^/- /')
+          
+          ### Installation:
+          These external binaries are automatically downloaded by the Retrograde install script.
+          No manual action required for end users.
+          
+          ### For Developers:
+          - Binaries built using Docker containers for consistency
+          - Static linking for maximum compatibility  
+          - Cross-platform support (x86_64 and ARM64)
+          EOF
+          
+          echo "📝 External dependencies updated for release ${{ steps.vars.outputs.release_tag }}"
+      
+      - name: Warning if release doesn't exist
+        if: steps.check_release.outputs.release_exists == 'false'
+        run: |
+          echo "⚠️ WARNING: Release ${{ steps.vars.outputs.release_tag }} does not exist in ${{ env.RETROGRADE_REPO }}"
+          echo "Please create the release first, then re-run this workflow."
+          echo ""
+          echo "External binaries were built and are available as workflow artifacts:"
+          find artifacts/ -name "*.tar.gz" -type f -exec ls -lh {} \;
