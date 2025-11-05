@@ -21,7 +21,7 @@ These binaries are built using Docker containers for consistency and automatical
 ./scripts/create-release-archives.sh
 
 # Upload to retrograde releases (requires GitHub token)
-./scripts/upload-to-retrograde-release.sh v1.0.0
+./scripts/upload-to-retrograde-release.sh v1.0.1
 ```
 
 ## Architecture Support

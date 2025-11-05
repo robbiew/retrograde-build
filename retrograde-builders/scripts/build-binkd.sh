@@ -9,16 +9,7 @@ echo "=== Building Binkd ==="
 
 # Determine architecture for output naming
 ARCH=$(uname -m)
-if [ -n "$FORCE_ARCH" ]; then
-    # Use forced architecture from environment
-    if [ "$FORCE_ARCH" = "arm64" ]; then
-        ARCH_NAME="arm64"
-    elif [ "$FORCE_ARCH" = "x86_64" ]; then
-        ARCH_NAME="x86_64"
-    else
-        ARCH_NAME="$FORCE_ARCH"
-    fi
-elif [ "$ARCH" = "aarch64" ]; then
+if [ "$ARCH" = "aarch64" ]; then
     ARCH_NAME="arm64"
 elif [ "$ARCH" = "x86_64" ]; then
     ARCH_NAME="x86_64"
