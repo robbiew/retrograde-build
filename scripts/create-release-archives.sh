@@ -40,61 +40,57 @@ fi
 # Create archives directory
 mkdir -p "$ARCHIVES_DIR"
 
-# Binary version mappings
-declare -A BINARY_VERSIONS=(
-    ["hpt"]="1.9.0"
+# Component version mappings
+declare -A COMPONENT_VERSIONS=(
+    ["husky"]="1.9.0"
     ["binkd"]="1.1.0"
     ["stormedit"]="4.0"
 )
 
-# Function to create archive for a specific binary and architecture
-create_binary_archive() {
-    local binary_name="$1"
+# Function to create archive for a component (all binaries) and architecture
+create_component_archive() {
+    local component="$1"
     local arch="$2"
-    local version="${BINARY_VERSIONS[$binary_name]}"
+    local version="${COMPONENT_VERSIONS[$component]}"
     
-    echo -e "${CYAN}Creating archive for $binary_name ($arch)...${NC}"
+    echo -e "${CYAN}Creating $component archive for $arch...${NC}"
     
-    # Find the binary in the output directory
-    local binary_path=""
-    if [ -f "$OUTPUT_DIR/$arch/husky/$binary_name" ]; then
-        binary_path="$OUTPUT_DIR/$arch/husky/$binary_name"
-    elif [ -f "$OUTPUT_DIR/$arch/binkd/$binary_name" ]; then
-        binary_path="$OUTPUT_DIR/$arch/binkd/$binary_name"
-    elif [ -f "$OUTPUT_DIR/$arch/stormedit/$binary_name" ]; then
-        binary_path="$OUTPUT_DIR/$arch/stormedit/$binary_name"
-    elif [ -f "$OUTPUT_DIR/$arch/$binary_name/$binary_name" ]; then
-        binary_path="$OUTPUT_DIR/$arch/$binary_name/$binary_name"
-    else
-        echo -e "${YELLOW}⚠${NC} Binary not found: $binary_name for $arch"
+    local component_dir="$OUTPUT_DIR/$component/$arch"
+    
+    if [ ! -d "$component_dir" ]; then
+        echo -e "${YELLOW}⚠${NC} Component directory not found: $component_dir"
         return 1
     fi
     
-    if [ ! -f "$binary_path" ]; then
-        echo -e "${YELLOW}⚠${NC} Binary file not found: $binary_path"
+    # Check if directory has any files
+    local file_count=$(find "$component_dir" -type f | wc -l)
+    if [ "$file_count" -eq 0 ]; then
+        echo -e "${YELLOW}⚠${NC} No files found in $component_dir"
         return 1
     fi
     
     # Create temp directory for this archive
-    local temp_dir="$ARCHIVES_DIR/tmp-$binary_name-$arch"
+    local temp_dir="$ARCHIVES_DIR/tmp-$component-$arch"
     mkdir -p "$temp_dir"
     
-    # Copy binary to temp directory
-    cp "$binary_path" "$temp_dir/$binary_name"
-    chmod +x "$temp_dir/$binary_name"
+    # Copy all binaries to temp directory and make executable
+    cp -r "$component_dir"/* "$temp_dir/"
+    find "$temp_dir" -type f -exec chmod +x {} \;
     
     # Create archive
-    local archive_name="$binary_name-$version-linux-$arch.tar.gz"
+    local archive_name="$component-$version-linux-$arch.tar.gz"
     local archive_path="$ARCHIVES_DIR/$archive_name"
     
-    tar -czf "$archive_path" -C "$temp_dir" "$binary_name"
+    # Create archive with all files in component directory
+    tar -czf "$archive_path" -C "$temp_dir" .
     
     # Clean up temp directory
     rm -rf "$temp_dir"
     
     if [ -f "$archive_path" ]; then
         local size=$(du -h "$archive_path" | cut -f1)
-        echo -e "${GREEN}✓${NC} Created: $archive_name ($size)"
+        local files=$(find "$component_dir" -type f | wc -l)
+        echo -e "${GREEN}✓${NC} Created: $archive_name ($size, $files files)"
         return 0
     else
         echo -e "${RED}✗${NC} Failed to create: $archive_name"
@@ -102,30 +98,24 @@ create_binary_archive() {
     fi
 }
 
-# Function to process all binaries for an architecture
+# Function to process all components for an architecture
 process_architecture() {
     local arch="$1"
-    local arch_dir="$OUTPUT_DIR/$arch"
-    
-    if [ ! -d "$arch_dir" ]; then
-        echo -e "${YELLOW}⚠${NC} Architecture directory not found: $arch"
-        return 1
-    fi
     
     echo -e "${YELLOW}Processing $arch architecture...${NC}"
     
     local success_count=0
     local total_count=0
     
-    # Process each binary
-    for binary in hpt binkd stormedit; do
+    # Process each component
+    for component in husky binkd stormedit; do
         total_count=$((total_count + 1))
-        if create_binary_archive "$binary" "$arch"; then
+        if create_component_archive "$component" "$arch"; then
             success_count=$((success_count + 1))
         fi
     done
     
-    echo -e "${CYAN}$arch Summary: $success_count/$total_count binaries archived${NC}"
+    echo -e "${CYAN}$arch Summary: $success_count/$total_count components archived${NC}"
     echo ""
     
     return 0
@@ -134,19 +124,33 @@ process_architecture() {
 # Main processing
 echo -e "${CYAN}Scanning output directory...${NC}"
 
-# Find available architectures
+# Find available architectures by looking inside component directories
 ARCHITECTURES=()
-for arch_dir in "$OUTPUT_DIR"/*; do
-    if [ -d "$arch_dir" ]; then
-        arch_name=$(basename "$arch_dir")
-        ARCHITECTURES+=("$arch_name")
+for component_dir in "$OUTPUT_DIR"/*; do
+    if [ -d "$component_dir" ]; then
+        component_name=$(basename "$component_dir")
+        # Skip build summary files
+        if [[ "$component_name" == build-summary* ]]; then
+            continue
+        fi
+        
+        # Look for architecture subdirectories
+        for arch_dir in "$component_dir"/*; do
+            if [ -d "$arch_dir" ]; then
+                arch_name=$(basename "$arch_dir")
+                # Add to architectures array if not already present
+                if [[ ! " ${ARCHITECTURES[@]} " =~ " ${arch_name} " ]]; then
+                    ARCHITECTURES+=("$arch_name")
+                fi
+            fi
+        done
     fi
 done
 
 if [ ${#ARCHITECTURES[@]} -eq 0 ]; then
     echo -e "${RED}✗${NC} No architecture directories found in $OUTPUT_DIR"
-    echo -e "Available directories:"
-    ls -la "$OUTPUT_DIR" || echo "  (directory is empty)"
+    echo -e "Available structure:"
+    find "$OUTPUT_DIR" -type d -maxdepth 2 | head -10
     exit 1
 fi
 
@@ -177,8 +181,8 @@ if [ $total_archives -gt 0 ]; then
     echo -e "${CYAN}Created archives:${NC}"
     for archive in "$ARCHIVES_DIR"/*.tar.gz; do
         if [ -f "$archive" ]; then
-            local basename_archive=$(basename "$archive")
-            local size=$(du -h "$archive" | cut -f1)
+            basename_archive=$(basename "$archive")
+            size=$(du -h "$archive" | cut -f1)
             echo -e "  • ${basename_archive} (${size})"
         fi
     done

@@ -17,6 +17,11 @@ These binaries are built using Docker containers for consistency and automatical
 # Build all binaries for both architectures
 ./build.sh --all both
 
+# Build specific component for specific architecture  
+./build.sh --husky x86_64
+./build.sh --binkd arm64
+./build.sh --stormedit both
+
 # Create release archives
 ./scripts/create-release-archives.sh
 

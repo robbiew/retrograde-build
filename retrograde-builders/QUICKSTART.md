@@ -3,41 +3,44 @@
 ## TL;DR - Build Everything
 
 ```bash
-cd retrograde-builders
-./build.sh
+# From the DockerBuilds repository root
+./build.sh --all both
 ```
 
 This will:
 1. Build Docker images for both ARM64 and x86_64
 2. Compile all components (Husky, Binkd, Stormedit) for both architectures
-3. Output static binaries to `./output/`
+3. Output static binaries to `../output/` (repository root)
 
 ## Quick Commands
 
 ### Build specific architecture only
 ```bash
-./build.sh arm64        # ARM64 only
-./build.sh x86_64       # x86_64 only
+# From repository root
+./build.sh --all arm64        # ARM64 only
+./build.sh --all x86_64       # x86_64 only
 ```
 
 ### Build specific components
 ```bash
-./build.sh --husky      # Husky Project only
-./build.sh --binkd      # Binkd only  
-./build.sh --stormedit  # Stormedit only
+# From repository root
+./build.sh --husky both       # Husky Project only
+./build.sh --binkd both       # Binkd only  
+./build.sh --stormedit both   # Stormedit only
 ```
 
 ### Combine options
 ```bash
-./build.sh --husky arm64    # Husky for ARM64 only
-./build.sh --clean --binkd  # Clean output and build Binkd for both archs
+# From repository root
+./build.sh --husky arm64      # Husky for ARM64 only
+./build.sh --binkd x86_64     # Binkd for x86_64 only
 ```
 
 ## Output
 
-After successful build, find your binaries in:
+After successful build, find your binaries in the repository root:
 ```
-output/
+../output/
 ├── husky/
 │   ├── arm64/hpt, htick, fidoconf
 │   └── x86_64/hpt, htick, fidoconf
@@ -58,6 +61,7 @@ output/
 ## Help
 
 ```bash
+# From repository root
 ./build.sh --help
 ```
 

@@ -1,13 +1,21 @@
-FROM --platform=linux/arm64 ubuntu:24.04
+FROM ubuntu:24.04
 
-# Set environment variables
+# Set environment variables for cross-compilation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV GOPATH=/go
 ENV PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
-ENV CC=gcc
-ENV CXX=g++
 
-# Install basic build dependencies
+# Cross-compilation environment for ARM64
+ENV CC=aarch64-linux-gnu-gcc
+ENV CXX=aarch64-linux-gnu-g++
+ENV AR=aarch64-linux-gnu-ar
+ENV STRIP=aarch64-linux-gnu-strip
+ENV CROSS_COMPILE=aarch64-linux-gnu-
+ENV GOOS=linux
+ENV GOARCH=arm64
+ENV CGO_ENABLED=1
+
+# Install cross-compilation toolchain and dependencies
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     wget \
@@ -20,38 +28,21 @@ RUN apt-get update && apt-get install -y \
     libtool \
     pkg-config \
     make \
-    gcc \
-    g++ \
-    libc6-dev \
-    libncurses5-dev \
-    libncursesw5-dev \
-    zlib1g-dev \
-    libssl-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    tk-dev \
-    libgdbm-dev \
-    libc6-dev \
-    libbz2-dev \
-    libffi-dev \
     flex \
     bison \
     gawk \
     gettext \
     texinfo \
     sudo \
+    crossbuild-essential-arm64 \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dosemu2
-RUN add-apt-repository ppa:dosemu2/ppa && \
-    apt-get update && \
-    apt-get install -y dosemu2 && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Go
-RUN apt-get update && \
-    apt-get install -y golang && \
-    rm -rf /var/lib/apt/lists/*
+# Install Go with ARM64 support
+RUN wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz && \
+    rm go1.21.5.linux-amd64.tar.gz
 
 # Create working directories
 RUN mkdir -p /build /output /go
@@ -62,19 +53,20 @@ WORKDIR /build
 # Create scripts directory
 RUN mkdir -p /scripts
 
-# Clone repositories (except Husky - will use install script)
-RUN git clone https://github.com/robbiew/retrograde.git /build/retrograde && \
-    git clone https://github.com/pgul/binkd.git /build/binkd && \
+# Clone external binary repositories
+RUN git clone https://github.com/pgul/binkd.git /build/binkd && \
     git clone https://github.com/robbiew/stormedit.git /build/stormedit
 
-# Set up static linking flags
+# Set up cross-compilation flags for static ARM64 builds
 ENV LDFLAGS="-static -s"
 ENV CFLAGS="-O2 -static"
 ENV CXXFLAGS="-O2 -static"
 
 # Create entry point script
 RUN echo '#!/bin/bash\n\
-echo "=== ARM64 Build Container ==="\n\
+echo "=== ARM64 Cross-Compilation Build Container ==="\n\
+echo "Cross-compilation toolchain: $(aarch64-linux-gnu-gcc --version | head -1)"\n\
+echo "Target architecture: $(aarch64-linux-gnu-gcc -dumpmachine)"\n\
 echo "Available build scripts:"\n\
 echo "  /scripts/build-husky.sh - Build Husky Project binaries"\n\
 echo "  /scripts/build-binkd.sh - Build Binkd"\n\
@@ -83,7 +75,6 @@ echo "  /scripts/build-all.sh - Build everything"\n\
 echo ""\n\
 echo "Output directory: /output"\n\
 echo "Source directories:"\n\
-echo "  /build/retrograde - Retrograde BBS"\n\
 echo "  /build/husky - Husky Project (created by build script)"\n\
 echo "  /build/binkd - Binkd"\n\
 echo "  /build/stormedit - Stormedit"\n\

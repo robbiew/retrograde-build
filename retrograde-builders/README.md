@@ -23,11 +23,9 @@ retrograde-builders/
 │   ├── build-binkd.sh     # Binkd build script
 │   ├── build-stormedit.sh # Stormedit build script
 │   └── build-all.sh       # Master build script
-├── output/                 # Build output directory
-│   ├── husky/
-│   ├── binkd/
-│   └── stormedit/
 └── README.md              # This file
+
+# Output is generated in the main output/ directory at repository root
 ```
 
 ## Prerequisites
@@ -68,34 +66,32 @@ docker buildx build --platform linux/amd64 -t retrograde-builder:x86_64 --load x
 
 ## Running Builds
 
-### Method 1: Build All Components (Recommended)
+Use the main build script from the repository root:
 
 ```bash
-# For ARM64
-docker run --rm -v $(pwd)/output:/output retrograde-builder:arm64 /scripts/build-all.sh
-
-# For x86_64
-docker run --rm -v $(pwd)/output:/output retrograde-builder:x86_64 /scripts/build-all.sh
+# From DockerBuilds repository root
+./build.sh --all both         # Build all components for both architectures
+./build.sh --husky x86_64     # Build only Husky for x86_64
+./build.sh --binkd arm64      # Build only Binkd for ARM64
 ```
 
-### Method 2: Build Individual Components
+### Alternative: Direct Container Usage
+
+For advanced users or debugging, you can run containers directly:
 
 ```bash
-# Build only Husky Project
-docker run --rm -v $(pwd)/output:/output retrograde-builder:arm64 /scripts/build-all.sh --husky
+# Build only Husky Project (using repository root script)
+./build.sh --husky arm64
 
-# Build only Binkd
-docker run --rm -v $(pwd)/output:/output retrograde-builder:arm64 /scripts/build-all.sh --binkd
-
-# Build only Stormedit
-docker run --rm -v $(pwd)/output:/output retrograde-builder:arm64 /scripts/build-all.sh --stormedit
+# Or run container directly (from retrograde-builders directory)
+docker run --rm -v $(pwd)/../output:/output retrograde-builder:arm64 /scripts/build-all.sh --husky
 ```
 
-### Method 3: Interactive Container
+### Interactive Container
 
 ```bash
-# Start interactive container
-docker run --rm -it -v $(pwd)/output:/output retrograde-builder:arm64 /bin/bash
+# Start interactive container (from retrograde-builders directory)
+docker run --rm -it -v $(pwd)/../output:/output retrograde-builder:arm64 /bin/bash
 
 # Inside the container, run individual build scripts
 /scripts/build-husky.sh

@@ -100,37 +100,44 @@ jobs:
           mkdir -p staging/${{ matrix.architecture }}
           
           # Copy binaries to staging with consistent naming
-          if [ -d "output/${{ matrix.architecture }}" ]; then
-            # Look for binaries in architecture-specific output
-            for component_dir in output/${{ matrix.architecture }}/*; do
-              if [ -d "$component_dir" ]; then
-                component=$(basename "$component_dir")
-                echo "Processing $component..."
-                
-                # Copy binaries with standardized names
-                case "$component" in
-                  "husky"|"hpt")
-                    if [ -f "$component_dir/hpt" ]; then
-                      cp "$component_dir/hpt" "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
-                      chmod +x "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
+          for component in husky binkd stormedit; do
+            component_dir="output/$component/${{ matrix.architecture }}"
+            if [ -d "$component_dir" ]; then
+              echo "Processing $component..."
+              
+              # Copy binaries with standardized names
+              case "$component" in
+                "husky")
+                  if [ -f "$component_dir/hpt" ]; then
+                    cp "$component_dir/hpt" "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
+                    chmod +x "staging/${{ matrix.architecture }}/hpt-static-${{ matrix.architecture }}"
+                  fi
+                  # Copy other husky binaries
+                  for binary in htick hptlink hpttree pktinfo txt2pkt tpkt gnmsgid tparser linked; do
+                    if [ -f "$component_dir/$binary" ]; then
+                      cp "$component_dir/$binary" "staging/${{ matrix.architecture }}/$binary-static-${{ matrix.architecture }}"
+                      chmod +x "staging/${{ matrix.architecture }}/$binary-static-${{ matrix.architecture }}"
                     fi
-                    ;;
-                  "binkd")
-                    if [ -f "$component_dir/binkd" ]; then
-                      cp "$component_dir/binkd" "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
-                      chmod +x "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
-                    fi
-                    ;;
-                  "stormedit")
-                    if [ -f "$component_dir/stormedit" ]; then
-                      cp "$component_dir/stormedit" "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
-                      chmod +x "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
-                    fi
-                    ;;
-                esac
-              fi
-            done
-          fi
+                  done
+                  ;;
+                "binkd")
+                  if [ -f "$component_dir/binkd" ]; then
+                    cp "$component_dir/binkd" "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
+                    chmod +x "staging/${{ matrix.architecture }}/binkd-static-${{ matrix.architecture }}"
+                  fi
+                  ;;
+                "stormedit")
+                  if [ -f "$component_dir/stormedit" ]; then
+                    cp "$component_dir/stormedit" "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
+                    chmod +x "staging/${{ matrix.architecture }}/stormedit-static-${{ matrix.architecture }}"
+                  fi
+                  if [ -f "$component_dir/editorbd.ans" ]; then
+                    cp "$component_dir/editorbd.ans" "staging/${{ matrix.architecture }}/editorbd.ans"
+                  fi
+                  ;;
+              esac
+            fi
+          done
           
           # List what we're archiving
           echo "📋 Files to archive:"

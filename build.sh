@@ -83,6 +83,7 @@ build_component() {
     
     # Run the build in container with output volume mounted
     if docker run --rm \
+        -e "FORCE_ARCH=$arch" \
         -v "$SCRIPT_DIR/retrograde-builders/scripts:/scripts" \
         -v "$OUTPUT_DIR:/output" \
         "retrograde-builder:$arch" \

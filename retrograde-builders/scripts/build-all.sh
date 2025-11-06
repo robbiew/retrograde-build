@@ -10,16 +10,20 @@ echo "=== Retrograde BBS Static Binary Builder ==="
 echo "======================================================="
 
 # Determine architecture
-ARCH=$(uname -m)
-if [ "$ARCH" = "aarch64" ]; then
-    ARCH_NAME="arm64"
-elif [ "$ARCH" = "x86_64" ]; then
-    ARCH_NAME="x86_64"
+if [ -n "$FORCE_ARCH" ]; then
+    ARCH_NAME="$FORCE_ARCH"
+    echo "Using forced architecture: $ARCH_NAME"
 else
-    ARCH_NAME="$ARCH"
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ]; then
+        ARCH_NAME="arm64"
+    elif [ "$ARCH" = "x86_64" ]; then
+        ARCH_NAME="x86_64"
+    else
+        ARCH_NAME="$ARCH"
+    fi
+    echo "Detected architecture: $ARCH_NAME"
 fi
-
-echo "Building for architecture: $ARCH_NAME"
 echo "Build directory: /build"
 echo "Output directory: /output"
 echo ""

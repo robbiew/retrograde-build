@@ -62,9 +62,8 @@ WORKDIR /build
 # Create scripts directory
 RUN mkdir -p /scripts
 
-# Clone repositories (except Husky - will use install script)
-RUN git clone https://github.com/robbiew/retrograde.git /build/retrograde && \
-    git clone https://github.com/pgul/binkd.git /build/binkd && \
+# Clone external binary repositories
+RUN git clone https://github.com/pgul/binkd.git /build/binkd && \
     git clone https://github.com/robbiew/stormedit.git /build/stormedit
 
 # Set up static linking flags
@@ -83,7 +82,6 @@ echo "  /scripts/build-all.sh - Build everything"\n\
 echo ""\n\
 echo "Output directory: /output"\n\
 echo "Source directories:"\n\
-echo "  /build/retrograde - Retrograde BBS"\n\
 echo "  /build/husky - Husky Project (created by build script)"\n\
 echo "  /build/binkd - Binkd"\n\
 echo "  /build/stormedit - Stormedit"\n\
