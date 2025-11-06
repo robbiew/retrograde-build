@@ -222,7 +222,7 @@ done
 
 # Also specifically look for main programs by name
 echo "Looking for specific Husky programs..."
-for program in hpt htick hptlink hpttree pktinfo txt2pkt tpkt gnmsgid tparser linked; do
+for program in hpt htick hptlink hpttree hptutil pktinfo txt2pkt tpkt gnmsgid tparser linked; do
     program_path=$(find . -name "$program" -type f -executable | head -1)
     if [ -n "$program_path" ] && [ -f "$program_path" ]; then
         echo "Found $program at: $program_path"
@@ -249,5 +249,93 @@ for binary in /output/husky/$ARCH_NAME/*; do
 done
 
 echo "Husky build complete!"
+
+# Now build hptutil separately
+echo "Building hptutil..."
+cd /build
+
+# Clone hptutil repository
+if [ ! -d "hptutil" ]; then
+    git clone https://github.com/huskyproject/hptutil.git
+fi
+
+cd hptutil
+
+# Configure hptutil build
+cp ../husky/huskymak.cfg .
+
+# Force static linking flags for hptutil
+echo "LDFLAGS=-static -s" >> huskymak.cfg
+echo "CFLAGS=-O2 -static" >> huskymak.cfg
+echo "CXXFLAGS=-O2 -static" >> huskymak.cfg
+echo "LFLAGS=-static -s" >> huskymak.cfg
+
+# Set up paths to the other Husky libraries
+echo "HUSKYLIB=../husky/huskylib/Build/libhusky.a" >> huskymak.cfg
+echo "SMAPI=../husky/smapi/Build/libsmapi.a" >> huskymak.cfg
+echo "FIDOCONFIG=../husky/fidoconf/Build/libfidoconf.a" >> huskymak.cfg
+
+# Build hptutil
+export PATH="/tmp/gcc-override:$PATH"
+export LDFLAGS="-static -s"
+export CFLAGS="-O2 -static"
+export CXXFLAGS="-O2 -static"
+export LFLAGS="-static -s"
+
+if [ "$ARCH_NAME" = "arm64" ]; then
+    export CC=aarch64-linux-gnu-gcc
+    export CXX=aarch64-linux-gnu-g++
+    export AR=aarch64-linux-gnu-ar
+    export STRIP=aarch64-linux-gnu-strip
+    BUILD_CC="aarch64-linux-gnu-gcc"
+else
+    export CC=gcc
+    export CXX=g++
+    export AR=ar
+    export STRIP=strip
+    BUILD_CC="gcc"
+fi
+
+# Create a simple Makefile for hptutil
+cat > Makefile << EOF
+CC = $BUILD_CC
+CFLAGS = -O2 -static -Wall -DUNIX -Ih -I../husky/huskylib -I../husky/smapi -I../husky/fidoconf
+LDFLAGS = -static -s
+TARGET = hptutil
+LIBS = ../husky/fidoconf/Build/libfidoconf.a ../husky/smapi/Build/libsmapi.a ../husky/huskylib/Build/libhusky.a
+
+OBJS = src/hptutil.o src/sortarea.o src/purgearea.o src/packarea.o src/linkarea.o src/fixarea.o src/undelete.o
+
+all: \$(TARGET)
+
+\$(TARGET): \$(OBJS)
+	\$(CC) \$(LDFLAGS) -o \$(TARGET) \$(OBJS) \$(LIBS)
+
+%.o: %.c
+	\$(CC) \$(CFLAGS) -c \$< -o \$@
+
+clean:
+	rm -f \$(OBJS) \$(TARGET)
+EOF
+
+# Build hptutil
+make clean || true
+make
+
+# Copy hptutil to output directory if it was built successfully
+if [ -f "hptutil" ]; then
+    echo "Found hptutil binary, copying to output..."
+    cp hptutil /output/husky/$ARCH_NAME/
+    echo "Copied hptutil to /output/husky/$ARCH_NAME/"
+    
+    # Verify the binary
+    echo "Checking hptutil binary:"
+    file /output/husky/$ARCH_NAME/hptutil
+    echo "Dependencies:"
+    ldd /output/husky/$ARCH_NAME/hptutil 2>/dev/null || echo "  (statically linked)"
+else
+    echo "Warning: hptutil binary was not found after build"
+fi
+
 echo "Binaries available in: /output/husky/$ARCH_NAME/"
 ls -la /output/husky/$ARCH_NAME/ || true
