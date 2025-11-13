@@ -4,10 +4,12 @@ This repository builds static external binaries used by [Retrograde BBS](https:/
 
 ## What This Does
 
-Builds static binaries for Fidonet utilities:
+Builds static binaries for Fidonet utilities and protocols:
+
 - **HPT** - Husky message processor
 - **Binkd** - Fidonet mailer daemon  
 - **StormEdit** - BBS message editor
+- **SEXYZ** - X/Y/Z-modem file transfer protocols from Synchronet
 
 These binaries are built using Docker containers for consistency and automatically uploaded to Retrograde BBS releases.
 
@@ -21,6 +23,7 @@ These binaries are built using Docker containers for consistency and automatical
 ./build.sh --husky x86_64
 ./build.sh --binkd arm64
 ./build.sh --stormedit both
+./build.sh --sexyz both
 
 # Create release archives
 ./scripts/create-release-archives.sh
@@ -37,6 +40,7 @@ These binaries are built using Docker containers for consistency and automatical
 ## Automated Builds
 
 GitHub Actions automatically:
+
 - Builds binaries weekly (Mondays 2 AM UTC)
 - Uploads to Retrograde BBS releases
 - Supports manual triggers
@@ -48,6 +52,7 @@ You don't need this repository. Retrograde's `install.sh` automatically download
 ## For Developers
 
 This separation allows:
+
 - Consistent static builds across platforms
 - Independent updates of external dependencies
 - Automated cross-platform binary generation

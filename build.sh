@@ -23,6 +23,7 @@ usage() {
     echo "  --husky       Build Husky Project only"
     echo "  --binkd       Build Binkd only" 
     echo "  --stormedit   Build Stormedit only"
+    echo "  --sexyz       Build SEXYZ (X/Y/Z-modem protocols) only"
     echo ""
     echo "Architectures:"
     echo "  x86_64        Build for x86_64/amd64"
@@ -66,6 +67,9 @@ build_component() {
             ;;
         "stormedit")
             script_name="build-stormedit.sh"
+            ;;
+        "sexyz")
+            script_name="build-sexyz.sh"
             ;;
         "all")
             script_name="build-all.sh"
@@ -163,6 +167,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --stormedit)
             COMPONENT="stormedit"
+            shift
+            ;;
+        --sexyz)
+            COMPONENT="sexyz"
             shift
             ;;
         x86_64|arm64|both)

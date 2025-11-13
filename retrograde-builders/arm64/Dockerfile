@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y \
     gettext \
     texinfo \
     sudo \
+    unzip \
     crossbuild-essential-arm64 \
     gcc-aarch64-linux-gnu \
     g++-aarch64-linux-gnu \
@@ -55,7 +56,8 @@ RUN mkdir -p /scripts
 
 # Clone external binary repositories
 RUN git clone https://github.com/pgul/binkd.git /build/binkd && \
-    git clone https://github.com/robbiew/stormedit.git /build/stormedit
+    git clone https://github.com/robbiew/stormedit.git /build/stormedit && \
+    git clone https://gitlab.synchro.net/main/sbbs.git /build/sbbs
 
 # Set up cross-compilation flags for static ARM64 builds
 ENV LDFLAGS="-static -s"
@@ -78,6 +80,7 @@ echo "Source directories:"\n\
 echo "  /build/husky - Husky Project (created by build script)"\n\
 echo "  /build/binkd - Binkd"\n\
 echo "  /build/stormedit - Stormedit"\n\
+echo "  /build/sbbs - Synchronet BBS (SEXYZ)"\n\
 echo ""\n\
 exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
 

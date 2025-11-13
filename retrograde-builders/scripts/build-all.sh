@@ -29,7 +29,7 @@ echo "Output directory: /output"
 echo ""
 
 # Create output directory structure
-mkdir -p /output/{husky,binkd,stormedit}/$ARCH_NAME
+mkdir -p /output/{husky,binkd,stormedit,sexyz}/$ARCH_NAME
 
 # Function to run a build script with error handling
 run_build() {
@@ -60,6 +60,7 @@ BUILD_ALL=true
 BUILD_HUSKY=false
 BUILD_BINKD=false
 BUILD_STORMEDIT=false
+BUILD_SEXYZ=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -78,13 +79,19 @@ while [[ $# -gt 0 ]]; do
             BUILD_STORMEDIT=true
             shift
             ;;
+        --sexyz)
+            BUILD_ALL=false
+            BUILD_SEXYZ=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--husky] [--binkd] [--stormedit]"
+            echo "Usage: $0 [--husky] [--binkd] [--stormedit] [--sexyz]"
             echo ""
             echo "Options:"
             echo "  --husky     Build only Husky Project binaries"
             echo "  --binkd     Build only Binkd"
             echo "  --stormedit Build only Stormedit"
+            echo "  --sexyz     Build only SEXYZ (X/Y/Z-modem protocols)"
             echo "  --help, -h  Show this help message"
             echo ""
             echo "If no options are specified, all components will be built."
@@ -117,6 +124,12 @@ if [ "$BUILD_ALL" = true ] || [ "$BUILD_STORMEDIT" = true ]; then
     fi
 fi
 
+if [ "$BUILD_ALL" = true ] || [ "$BUILD_SEXYZ" = true ]; then
+    if ! run_build "build-sexyz.sh" "SEXYZ (X/Y/Z-modem protocols)"; then
+        echo "SEXYZ build failed, but continuing with other builds..."
+    fi
+fi
+
 echo "======================================================="
 echo "=== Build Summary ==="
 echo "======================================================="
@@ -125,7 +138,7 @@ echo "======================================================="
 echo "Built binaries for $ARCH_NAME:"
 echo ""
 
-for component in husky binkd stormedit; do
+for component in husky binkd stormedit sexyz; do
     component_dir="/output/$component/$ARCH_NAME"
     if [ -d "$component_dir" ] && [ "$(ls -A $component_dir 2>/dev/null)" ]; then
         echo "$component:"
@@ -149,7 +162,7 @@ Build Host: $(hostname)
 Components Built:
 EOF
 
-for component in husky binkd stormedit; do
+for component in husky binkd stormedit sexyz; do
     component_dir="/output/$component/$ARCH_NAME"
     echo "" >> /output/build-summary-$ARCH_NAME.txt
     echo "$component:" >> /output/build-summary-$ARCH_NAME.txt

@@ -45,6 +45,7 @@ declare -A COMPONENT_VERSIONS=(
     ["husky"]="1.9.0"
     ["binkd"]="1.1.0"
     ["stormedit"]="4.0"
+    ["sexyz"]="3.19c"
 )
 
 # Function to create archive for a component (all binaries) and architecture
@@ -108,7 +109,7 @@ process_architecture() {
     local total_count=0
     
     # Process each component
-    for component in husky binkd stormedit; do
+    for component in husky binkd stormedit sexyz; do
         total_count=$((total_count + 1))
         if create_component_archive "$component" "$arch"; then
             success_count=$((success_count + 1))
